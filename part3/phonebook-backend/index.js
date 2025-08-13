@@ -1,7 +1,39 @@
 const express = require('express')
 const morgan = require('morgan')
 const cors = require('cors')
+const mongoose = require('mongoose')
+require('dotenv').config()
+
 const app = express()
+
+// Conectar a MongoDB
+const url = process.env.MONGODB_URI
+
+console.log('connecting to', url)
+
+mongoose.connect(url)
+  .then(result => {
+    console.log('connected to MongoDB')
+  })
+  .catch((error) => {
+    console.log('error connecting to MongoDB:', error.message)
+  })
+
+// Definir el esquema y modelo de Person
+const personSchema = new mongoose.Schema({
+  name: String,
+  number: String,
+})
+
+personSchema.set('toJSON', {
+  transform: (document, returnedObject) => {
+    returnedObject.id = returnedObject._id.toString()
+    delete returnedObject._id
+    delete returnedObject.__v
+  }
+})
+
+const Person = mongoose.model('Person', personSchema)
 
 // Middleware para parsear JSON
 app.use(express.json())
@@ -15,77 +47,53 @@ app.use(morgan('tiny'))
 // Servir archivos estáticos del frontend
 app.use(express.static('dist'))
 
-// Datos hardcodeados
-let persons = [
-  { 
-    "id": 1,
-    "name": "Arto Hellas", 
-    "number": "040-123456"
-  },
-  { 
-    "id": 2,
-    "name": "Ada Lovelace", 
-    "number": "39-44-5323523"
-  },
-  { 
-    "id": 3,
-    "name": "Dan Abramov", 
-    "number": "12-43-234345"
-  },
-  { 
-    "id": 4,
-    "name": "Mary Poppendieck", 
-    "number": "39-23-6423122"
-  }
-]
-
 // Ruta para obtener todas las personas
 app.get('/api/persons', (request, response) => {
-  response.json(persons)
+  Person.find({}).then(persons => {
+    response.json(persons)
+  })
 })
 
 // Ruta para mostrar información
 app.get('/info', (request, response) => {
-  const totalPersons = persons.length
-  const currentTime = new Date()
-  
-  const infoHtml = `
-    <div>
-      <p>Phonebook has info for ${totalPersons} people</p>
-      <p>${currentTime}</p>
-    </div>
-  `
-  
-  response.send(infoHtml)
+  Person.countDocuments({}).then(count => {
+    const currentTime = new Date()
+    
+    const infoHtml = `
+      <div>
+        <p>Phonebook has info for ${count} people</p>
+        <p>${currentTime}</p>
+      </div>
+    `
+    
+    response.send(infoHtml)
+  })
 })
 
 // Ruta para obtener una persona específica por ID
-app.get('/api/persons/:id', (request, response) => {
-  const id = Number(request.params.id)
-  const person = persons.find(person => person.id === id)
-  
-  if (person) {
-    response.json(person)
-  } else {
-    response.status(404).end()
-  }
+app.get('/api/persons/:id', (request, response, next) => {
+  Person.findById(request.params.id)
+    .then(person => {
+      if (person) {
+        response.json(person)
+      } else {
+        response.status(404).end()
+      }
+    })
+    .catch(error => next(error))
 })
 
 // Ruta para eliminar una persona por ID
-app.delete('/api/persons/:id', (request, response) => {
-  const id = Number(request.params.id)
-  persons = persons.filter(person => person.id !== id)
-  
-  response.status(204).end()
+app.delete('/api/persons/:id', (request, response, next) => {
+  Person.findByIdAndDelete(request.params.id)
+    .then(result => {
+      response.status(204).end()
+    })
+    .catch(error => next(error))
 })
 
-// Función para generar un ID único con Math.random()
-const generateId = () => {
-  return Math.floor(Math.random() * 1000000)
-}
-
 // Ruta para crear una nueva persona
-app.post('/api/persons', (request, response) => {
+app.post('/api/persons', (request, response, next) => {
   const body = request.body
 
   // Validar que el nombre y número están presentes
@@ -95,24 +103,60 @@ app.post('/api/persons', (request, response) => {
     })
   }
 
-  // Validar que el nombre no existe ya
-  const existingPerson = persons.find(person => person.name === body.name)
-  if (existingPerson) {
-    return response.status(400).json({ 
-      error: 'name must be unique' 
+  const person = new Person({
+    name: body.name,
+    number: body.number,
+  })
+
+  person.save()
+    .then(savedPerson => {
+      response.json(savedPerson)
     })
-  }
+    .catch(error => next(error))
+})
+
+// Ruta para actualizar una persona existente
+app.put('/api/persons/:id', (request, response, next) => {
+  const body = request.body
 
   const person = {
-    id: generateId(),
     name: body.name,
     number: body.number,
   }
 
-  persons = persons.concat(person)
-
-  response.json(person)
+  Person.findByIdAndUpdate(request.params.id, person, { new: true })
+    .then(updatedPerson => {
+      if (updatedPerson) {
+        response.json(updatedPerson)
+      } else {
+        response.status(404).end()
+      }
+    })
+    .catch(error => next(error))
 })
+
+// Middleware para manejar URLs desconocidas
+const unknownEndpoint = (request, response) => {
+  response.status(404).send({ error: 'unknown endpoint' })
+}
+
+app.use(unknownEndpoint)
+
+// Middleware para manejar errores
+const errorHandler = (error, request, response, next) => {
+  console.error(error.message)
+
+  if (error.name === 'CastError') {
+    return response.status(400).send({ error: 'malformatted id' })
+  } else if (error.name === 'ValidationError') {
+    return response.status(400).json({ error: error.message })
+  }
+
+  next(error)
+}
+
+// Este debe ser el último middleware cargado
+app.use(errorHandler)
 
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {

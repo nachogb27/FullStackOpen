@@ -1,6 +1,10 @@
 import axios from 'axios'
 
-const baseUrl = '/api/persons'
+// Para desarrollo local, usa la URL completa
+// Para producción, usa rutas relativas
+const baseUrl = process.env.NODE_ENV === 'production' 
+  ? '/api/persons' 
+  : 'http://localhost:3001/api/persons'
 
 const getAll = () => {
   const request = axios.get(baseUrl)

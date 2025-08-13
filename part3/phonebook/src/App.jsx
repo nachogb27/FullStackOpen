@@ -1,4 +1,4 @@
-// App.jsx - Ejercicio 2.16 y 2.17
+// App.jsx - Ejercicio 2.16 y 2.17 - Arreglado para MongoDB
 import { useState, useEffect } from 'react'
 import personService from './services/persons'
 import './index.css'
@@ -76,7 +76,12 @@ const App = () => {
     personService
       .getAll()
       .then(initialPersons => {
+        console.log('Received persons:', initialPersons) // Debug log
         setPersons(initialPersons)
+      })
+      .catch(error => {
+        console.error('Error fetching persons:', error)
+        showNotification('Error fetching data from server', 'error')
       })
   }, [])
 
@@ -125,12 +130,14 @@ const App = () => {
     personService
       .create(personObject)
       .then(returnedPerson => {
+        console.log('Added person:', returnedPerson) // Debug log
         setPersons(persons.concat(returnedPerson))
         setNewName('')
         setNewNumber('')
         showNotification(`Added ${returnedPerson.name}`, 'success')
       })
       .catch(error => {
+        console.error('Error adding person:', error)
         showNotification('Failed to add person', 'error')
       })
   }
@@ -143,7 +150,8 @@ const App = () => {
           setPersons(persons.filter(person => person.id !== id))
           showNotification(`Deleted ${name}`, 'success')
         })
-        .catch(() => {
+        .catch(error => {
+          console.error('Error deleting person:', error)
           showNotification(
             `Information of ${name} has already been removed from server`,
             'error'
@@ -165,11 +173,14 @@ const App = () => {
     setFilter(event.target.value)
   }
 
-  const personsToShow = filter === ''
+  // Asegurar que persons siempre sea un array antes de filtrar
+  const personsToShow = Array.isArray(persons) && filter === ''
     ? persons
-    : persons.filter(person => 
-        person.name.toLowerCase().includes(filter.toLowerCase())
-      )
+    : Array.isArray(persons)
+      ? persons.filter(person => 
+          person.name.toLowerCase().includes(filter.toLowerCase())
+        )
+      : []
 
   return (
     <div>
