@@ -1,4 +1,3 @@
-// App.jsx - Ejercicio 2.16 y 2.17 - Arreglado para MongoDB
 import { useState, useEffect } from 'react'
 import personService from './services/persons'
 import './index.css'
