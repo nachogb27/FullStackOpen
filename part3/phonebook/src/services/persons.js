@@ -1,10 +1,7 @@
 import axios from 'axios'
 
-// Para desarrollo local, usa la URL completa
-// Para producción, usa rutas relativas
-const baseUrl = process.env.NODE_ENV === 'production' 
-  ? '/api/persons' 
-  : 'http://localhost:3001/api/persons'
+// Apuntar al backend desplegado en Render
+const baseUrl = 'https://phonebookbackend-zwwp.onrender.com/api/persons'
 
 const getAll = () => {
   const request = axios.get(baseUrl)

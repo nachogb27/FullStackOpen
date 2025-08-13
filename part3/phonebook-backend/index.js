@@ -44,9 +44,6 @@ app.use(cors())
 // Middleware de logging
 app.use(morgan('tiny'))
 
-// Servir archivos estáticos del frontend
-app.use(express.static('dist'))
-
 // Ruta para obtener todas las personas
 app.get('/api/persons', (request, response) => {
   Person.find({}).then(persons => {
