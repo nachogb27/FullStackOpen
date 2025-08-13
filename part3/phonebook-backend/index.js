@@ -12,6 +12,9 @@ app.use(cors())
 // Middleware de logging
 app.use(morgan('tiny'))
 
+// Servir archivos estáticos del frontend
+app.use(express.static('dist'))
+
 // Datos hardcodeados
 let persons = [
   { 
