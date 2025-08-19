@@ -26,11 +26,22 @@ app.use(express.json())
 app.use(middleware.requestLogger)
 app.use(middleware.tokenExtractor)
 
+
+console.log('NODE_ENV:', process.env.NODE_ENV)
+
+if (process.env.NODE_ENV === 'test') {
+  console.log('Loading testing router...')
+  const testingRouter = require('./controllers/testing')
+  app.use('/api/testing', testingRouter)
+  console.log('Testing router loaded!')
+}
+
 app.use('/api/blogs', middleware.userExtractor, blogsRouter)
 app.use('/api/users', usersRouter)
 app.use('/api/login', loginRouter)
 
 app.use(middleware.unknownEndpoint)
 app.use(middleware.errorHandler)
+
 
 module.exports = app
